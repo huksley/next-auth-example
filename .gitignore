@@ -93,6 +93,7 @@ dist
 
 # Serverless directories
 .serverless/
+.serverless*
 
 # FuseBox cache
 .fusebox/
@@ -106,5 +107,6 @@ dist
 .vercel
 .now
 .env.local
+.env.*.local
 
 .DS_Store

@@ -1,0 +1,5 @@
+app:
+  component: "@sls-next/serverless-component@1.18.0"
+  inputs:
+    publicDirectoryCache: false
+    description: "AWS deployment of next-auth example"
