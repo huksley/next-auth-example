@@ -21,6 +21,7 @@
     "next-auth": "^3.1.0",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
+    "require-optional-mongodb": "^0.1.0",
     "sqlite3": "^4.2.0",
     "typeorm": "^0.2.28"
   },
