@@ -1,0 +1,12 @@
+diff -rwu node_modules/next-auth.orig/dist/adapters/typeorm/index.js node_modules/next-auth/dist/adapters/typeorm/index.js
+--- node_modules/next-auth.orig/dist/adapters/typeorm/index.js	2020-11-27 12:10:53.000000000 +0200
++++ node_modules/next-auth/dist/adapters/typeorm/index.js	2020-11-27 12:12:19.000000000 +0200
+@@ -115,7 +115,7 @@
+ 
+       if (config.type === 'mongodb') {
+         idKey = '_id';
+-        var mongodb = (0, _require_optional.default)('mongodb');
++        var mongodb = require('mongodb');
+         ObjectId = mongodb.ObjectId;
+       }
+ 
