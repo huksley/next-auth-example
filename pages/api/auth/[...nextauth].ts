@@ -1,11 +1,15 @@
-import NextAuth, { NextAuthOptions } from "next-auth"
-import GoogleProvider from "next-auth/providers/google"
-import FacebookProvider from "next-auth/providers/facebook"
-import GithubProvider from "next-auth/providers/github"
-import TwitterProvider from "next-auth/providers/twitter"
-import Auth0Provider from "next-auth/providers/auth0"
-import { MongoDBAdapter } from "@next-auth/mongodb-adapter"
-import clientPromise from "../../../lib/mongodb"
+import NextAuth, { NextAuthOptions, Profile } from "next-auth";
+import type { NextApiRequest, NextApiResponse } from "next";
+import GoogleProvider from "next-auth/providers/google";
+import FacebookProvider from "next-auth/providers/facebook";
+import GithubProvider from "next-auth/providers/github";
+import TwitterProvider from "next-auth/providers/twitter";
+import Auth0Provider from "next-auth/providers/auth0";
+import { MongoDBAdapter } from "@next-auth/mongodb-adapter";
+import clientPromise from "../../../lib/mongodb";
+import { OAuthConfig } from "next-auth/providers";
+import { signIn } from "next-auth/react";
+import { Db } from "mongodb";
 // import AppleProvider from "next-auth/providers/apple"
 // import EmailProvider from "next-auth/providers/email"
 
@@ -42,6 +46,15 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_ID,
       clientSecret: process.env.GOOGLE_SECRET,
+      // Forces grant consent dialog all the time, but needed for refresh token
+      // https://next-auth.js.org/tutorials/refresh-token-rotation
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
     /*
     TwitterProvider({
@@ -59,17 +72,43 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // Every 30 days
-    updateAge: 24 * 60 * 60 // Every day
+    updateAge: 24 * 60 * 60, // Every day
   },
   theme: {
     colorScheme: "dark",
   },
   callbacks: {
     async jwt({ token }) {
-      token.userRole = "admin"
-      return token
+      token.userRole = "admin";
+      return token;
+    },
+    async signIn({ user, profile, account }) {
+      const client = await clientPromise;
+      await client
+        .db()
+        .collection("appusers")
+        .updateOne(
+          {
+            provider: "google",
+            providerAccountId: account?.providerAccountId,
+          },
+          {
+            $set: {
+              ...user,
+              ...profile,
+              ...account,
+              email: user.email,
+            },
+          },
+          { upsert: true }
+        );
+      return true;
     },
   },
-}
+};
 
-export default NextAuth(authOptions)
+const handler = (req: NextApiRequest, res: NextApiResponse) => {
+  return NextAuth(req, res, authOptions);
+};
+
+export default handler;
