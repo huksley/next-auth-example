@@ -13,9 +13,6 @@ import { Db } from "mongodb";
 // import AppleProvider from "next-auth/providers/apple"
 // import EmailProvider from "next-auth/providers/email"
 
-const GOOGLE_AUTH_URL =
-  "https://accounts.google.com/o/oauth2/v2/auth?prompt=consent&response_type=code&access_type=offline";
-
 // For more information on each option (and a full list of options) go to
 // https://next-auth.js.org/configuration/options
 export const authOptions: NextAuthOptions = {
@@ -51,7 +48,13 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_SECRET,
       // Forces grant consent dialog all the time, but needed for refresh token
       // https://next-auth.js.org/tutorials/refresh-token-rotation
-      authorization: GOOGLE_AUTH_URL,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
     /*
     TwitterProvider({
@@ -86,64 +89,26 @@ export const authOptions: NextAuthOptions = {
         .collection("appusers")
         .updateOne(
           {
-            provider: 'google',
-            providerAccountId: account?.providerAccountId
+            provider: "google",
+            providerAccountId: account?.providerAccountId,
           },
           {
             $set: {
               ...user,
               ...profile,
               ...account,
-              email: user.email
+              email: user.email,
             },
           },
           { upsert: true }
         );
-      // console.info("signIn callback user", user, "account", account);
       return true;
     },
   },
 };
 
 const handler = (req: NextApiRequest, res: NextApiResponse) => {
-  const url = new URL(req.url!, process.env.NEXTAUTH_URL);
-  const options = authOptions;
-  if (url.pathname === "/api/auth/signin/google") {
-    const additionalScopes = Array.isArray(req.query.add_scope)
-      ? req.query.add_scope
-      : typeof req.query.add_scope === "string"
-      ? [req.query.add_scope]
-      : undefined;
-    const provider = options.providers.find((p) => p.id === "google") as OAuthConfig<Profile>;
-    const otherProviders = options.providers.filter((p) => p.id !== "google");
-    const defaultScopes = [
-      "https://www.googleapis.com/auth/userinfo.profile",
-      "https://www.googleapis.com/auth/userinfo.email",
-      "openid",
-    ];
-    const scopes = Array.from(new Set([...defaultScopes, ...(additionalScopes || [])]));
-    console.info("Login to Google with scopes", scopes, req.query);
-    return NextAuth(req, res, {
-      ...options,
-      providers: [
-        {
-          ...provider,
-          authorization: {
-            url: GOOGLE_AUTH_URL,
-            params: {
-              login_hint: req.query.login_hint as string | undefined,
-              ...(typeof provider.authorization === "object" ? provider.authorization.params : undefined),
-              // https://developers.google.com/identity/protocols/oauth2/javascript-implicit-flow#incrementalAuth
-              scope: scopes.join(" "),
-            },
-          },
-        },
-        ...otherProviders,
-      ],
-    });
-  }
-
-  return NextAuth(req, res, options);
+  return NextAuth(req, res, authOptions);
 };
 
 export default handler;

@@ -8,18 +8,6 @@ import { authOptions } from "./api/auth/[...nextauth]";
 export async function getServerSideProps(context: GetServerSidePropsContext) {
   const session = await unstable_getServerSession(context.req, context.res, authOptions);
 
-  let scopes: string | undefined;
-  if (session?.user?.email) {
-    const client = await clientPromise;
-    const document = await client.db().collection("appusers").findOne({ email: session?.user?.email });
-    if (document) {
-      console.info("User", document)
-      scopes = document.scope
-    } else {
-      console.warn("Can't find", session?.user?.email)
-    }
-  }
-
   if (!session) {
     return {
       redirect: {
@@ -29,32 +17,66 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
     };
   }
 
+  if (session?.user?.email) {
+    const client = await clientPromise;
+    const document = await client.db().collection("appusers").findOne({ email: session?.user?.email });
+    if (document) {
+      console.info("User", document);
+      return {
+        props: {
+          scope: document.scope || null,
+          email: document.email || null,
+          provider: document.provider || null
+        },
+      };
+    } else {
+      console.warn("Can't find", session?.user?.email);
+    }
+  }
+
   return {
-    props: {
-      session,
-      scopes: scopes || null,
-    },
+    props: {},
   };
 }
 
-export default function IncrementalPage({ scopes }: { scopes: string }) {
+const DRIVE = "https://www.googleapis.com/auth/drive.readonly";
+
+export default function IncrementalPage({ scope, email, provider }: { scope?: string; email?: string, provider?: string }) {
   const { data } = useSession();
 
   return (
     <Layout>
-      <p>Current scopes: {scopes}</p>
-      <a
-        href="#"
-        onClick={(event) => {
-          event.stopPropagation();
-          signIn("google", undefined, {
-            login_hint: data?.user?.email!,
-            add_scope: "https://www.googleapis.com/auth/drive.readonly",
-          });
-        }}
-      >
-        Add drive permission
-      </a>
+      <p>Email: {email}</p>
+      <p>Provider: {provider}</p>
+      <p>Current scopes: {scope}</p>
+
+      {scope?.split(" ").includes(DRIVE) ? (
+        <a
+          href="#"
+          onClick={(event) => {
+            event.stopPropagation();
+            signIn("google", undefined, {
+              login_hint: data?.user?.email!,
+              scope: "openid",
+            });
+          }}
+        >
+          Sign-In without drive permission
+        </a>
+      ) : (
+        <a
+          href="#"
+          onClick={(event) => {
+            event.stopPropagation();
+            signIn("google", undefined, {
+              login_hint: data?.user?.email!,
+              scope: ["openid", DRIVE].join(" "),
+            });
+          }}
+        >
+          Sign-In and add drive permission
+        </a>
+      )}
     </Layout>
   );
 }
